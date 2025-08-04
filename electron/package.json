@@ -1,0 +1,54 @@
+{
+  "name": "root",
+  "description": "Secure boilerplate for Electron app based on Vite",
+  "version": "3.1.0",
+  "private": true,
+  "type": "module",
+  "author": {
+    "email": "kozackunisoft@gmail.com",
+    "name": "Alex Kozack",
+    "url": "https://kozack.me"
+  },
+  "main": "packages/entry-point.mjs",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=23.0.0"
+  },
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "compile": "npm run build && electron-builder build --config electron-builder.mjs",
+    "test": "npx playwright test ./tests/e2e.spec.ts",
+    "start": "node packages/dev-mode.js",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "create-renderer": "cd packages && node ./integrate-renderer/create-renderer.js",
+    "integrate-renderer": "npm start --workspace @app/integrate-renderer",
+    "init": "npm run create-renderer && npm run integrate-renderer && npm install"
+  },
+  "devDependencies": {
+    "@npmcli/map-workspaces": "4.0.2",
+    "@playwright/test": "1.53.2",
+    "@types/node": "24.0.10",
+    "create-vite": "7.0.1",
+    "electron": "37.2.0",
+    "electron-builder": "26.0.12",
+    "electron-devtools-installer": "^4.0.0",
+    "glob": "11.0.3",
+    "pinia": "^3.0.3",
+    "playwright": "^1.53.1",
+    "sass-embedded": "^1.89.2"
+  },
+  "dependencies": {
+    "@app/main": "*",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/vue-fontawesome": "^3.0.8",
+    "css-what": "^7.0.0",
+    "electron-chrome-extensions": "^4.9.0",
+    "electron-chrome-web-store": "^0.13.0",
+    "electron-context-menu": "^4.1.0",
+    "happy-dom": "^18.0.1",
+    "pinia-plugin-persistedstate": "^4.4.1"
+  }
+}
