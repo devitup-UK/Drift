@@ -39,7 +39,7 @@ struct BrowserApp: App {
                 .keyboardShortcut("t", modifiers: [.command])
             }
         }
-        .windowStyle(.automatic)
+        .windowStyle(.hiddenTitleBar)
     }
 
     func repositionTrafficLights(window: NSWindow? = nil) {
