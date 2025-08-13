@@ -115,17 +115,26 @@ html, body, #app {
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useGlobalStore } from './stores/globalStore';
+import { useTabStore } from './stores/tabStore';
+import { useHistoryStore } from './stores/historyStore';
 import SidebarView from './views/SidebarView.vue';
 import LayoutControlComponent from './components/LayoutControlComponent.vue';
 import WebContentView from './views/WebContentView.vue';
 import WindowDragAreaComponent from './components/WindowDragAreaComponent.vue';
 import NewTabComponent from './components/ControlBarComponent.vue';
 import { useKeyboardShortcuts } from './helpers/keyboardShortcutsHelper';
-import { ref, onMounted } from 'vue';
-import { onFullscreenChange } from '@app/preload';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { onFullscreenChange, onOpenInNewTab, onMediaPlaying, onMediaPaused, onTabInteraction, onExtensionInstalled, onExtensionRemoved } from '@app/preload';
+import { useWebviewStore } from './stores/webviewStore';
+import { watchAndSync } from './utils/watchAndSync';
+import { tabManager } from './managers/TabManager';
+import type ChromeExtension from '../../shared/models/ChromeExtension';
+import { useExtensionStore } from './stores/extensionStore';
 
 
 const globalStore = useGlobalStore();
+const tabStore = useTabStore();
+const historyStore = useHistoryStore();
 
 const { controlBarOpen, sidebarWidth, isSidebarVisible, slideSidebarIntoView, fullscreen } = storeToRefs(globalStore);
 
@@ -133,10 +142,71 @@ const resizing = ref(false);
 
 useKeyboardShortcuts();
 
+// watchAndSync(() => tabStore.tabs, tabStore.saveToDisk)
+// watchAndSync(() => historyStore.history, historyStore.saveToDisk)
+
 onMounted(() => {
+  tabManager.init()
 
   onFullscreenChange((isFullscreen: boolean) => {
     globalStore.setFullscreen(isFullscreen);
   });
+
+  onOpenInNewTab((url: string) => {
+    tabStore.addTab(url);
+  });
+
+  onMediaPlaying((webContentsId: number) => {
+    console.log('Media playing on webContents:', webContentsId);
+    const webviewStore = useWebviewStore();
+    const tabId = webviewStore.getTabIdByWebviewId(webContentsId);
+    if (tabId) {
+      tabStore.setTabMediaPlaying(tabId, true);
+    }
+    else {
+      console.warn('No tab found for webContentsId:', webContentsId);
+    }
+  });
+
+  onMediaPaused((webContentsId: number) => {
+    console.log('Media paused on webContents:', webContentsId);
+    const webviewStore = useWebviewStore();
+    const tabId = webviewStore.getTabIdByWebviewId(webContentsId);
+    if (tabId) {
+      tabStore.setTabMediaPlaying(tabId, false);
+    }
+    else {
+      console.warn('No tab found for webContentsId:', webContentsId);
+    }
+  });
+
+  onTabInteraction((webContentsId: number) => {
+    console.log('Tab interaction detected on webContents:', webContentsId);
+    const webviewStore = useWebviewStore();
+    const tabId = webviewStore.getTabIdByWebviewId(webContentsId);
+    if (tabId) {
+      tabStore.setTabLastInteractedAt(tabId, Date.now());
+    }
+    else {
+      console.warn('No tab found for webContentsId:', webContentsId);
+    }
+  });
+
+  onExtensionInstalled((extensionDetails: ChromeExtension) => {
+    console.log('Extension installed:', extensionDetails);
+    const extensionStore = useExtensionStore();
+    extensionStore.addExtension(extensionDetails);
+  });
+
+  onExtensionRemoved((extensionDetails: ChromeExtension) => {
+    console.log('Extension removed:', extensionDetails);
+    const extensionStore = useExtensionStore();
+    extensionStore.removeExtension(extensionDetails.id);
+  });
 });
+
+onBeforeUnmount(() => {
+  // tabStore.saveToDisk()
+  // historyStore.saveToDisk()
+})
 </script>

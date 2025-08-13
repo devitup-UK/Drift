@@ -5,6 +5,12 @@ import {pathToFileURL} from 'node:url';
 
 export default /** @type import('electron-builder').Configuration */
 ({
+  icon: './buildResources/icon',
+  appId: 'com.devitup.drift',
+  appImage: {
+    icon: './buildResources/icon',
+  },
+  productName: 'Drift',
   directories: {
     output: 'dist',
     buildResources: 'buildResources',

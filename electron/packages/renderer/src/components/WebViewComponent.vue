@@ -4,13 +4,14 @@
           class="webview__webpage"
           :data-tab-id="tab.id"
           ref="webview"
-          :src="tab.getActiveHistoryEntry()?.url"
+          :src="tab.initialUrl"
           allowpopups
           allowfullscreen
           contextmenu
-          webpreferences="javascript=yes, nodeIntegration=no, contextIsolation=no, webSecurity=no"
+          webpreferences="javascript=yes, nodeIntegration=no, contextIsolation=no, webSecurity=yes"
           partition="persist:drift-session"
-          disablewebsecurity
+          plugins
+          :preload="preloadUrl"
           v-if="!error.display"
         />
         <WebErrorComponent :code="error.code" :description="error.description" v-else></WebErrorComponent>
@@ -54,11 +55,13 @@ import { useTabStore } from '../stores/tabStore';
 import { useWebviewStore } from '../stores/webviewStore';
 import { storeToRefs } from 'pinia';
 import type { WebviewTag } from 'electron';
-import Tab from '../models/Tab';
+import Tab from '../../../shared/models/Tab';
 import WebErrorComponent from './errors/WebErrorComponent.vue';
 import { useGlobalStore } from '../stores/globalStore';
-import adblockCSS from '../assets/styles/adblock.css?raw'; // Adjust path as needed
-import { registerExtensionTab } from '@app/preload';
+import { useHistoryStore } from '../stores/historyStore';
+
+const preloadUrl = window.drift?.webviewPreloadPath || '';
+console.log("Preload URL:", preloadUrl);
 
 const webview = ref<WebviewTag | null>(null);
 const error: { display: boolean, code: number, description: string } = reactive({
@@ -68,6 +71,7 @@ const error: { display: boolean, code: number, description: string } = reactive(
 });
 const tabStore = useTabStore();
 const webviewStore = useWebviewStore();
+const historyStore = useHistoryStore();
 
 const { activeTabId, reloadSignals } = storeToRefs(tabStore);
 const { toolbarVisible } = storeToRefs(useGlobalStore());
@@ -78,77 +82,86 @@ const props = defineProps<{
 
 const tabId = props.tab.id;
 
+const isAuthUrl = (url: string) =>
+  url.includes('login.microsoftonline.com') ||
+  url.includes('device.login.microsoftonline.com') ||
+  url.includes('accounts.google.com');
+
 onMounted(() => {
   if (!webview.value) return;
 
   const view = webview.value;
 
-  webviewStore.registerWebview(tabId, webview.value);
+  view.addEventListener('did-attach', () => {
+    webviewStore.registerWebview(tabId, view);
+  });
 
-  webview.value.addEventListener('dom-ready', () => {
+  view.addEventListener('dom-ready', () => {
     webviewStore.setWebviewReady(tabId, true);
-    const wcId = webview.value?.getWebContentsId(); // This gets the webContents ID
-    registerExtensionTab(wcId);
-    try {
-    webview.value?.insertCSS(adblockCSS);
-    } catch (error) {
-      console.error('Error inserting CSS:', error);
-    }
   });
 
   // Set title on initial load
   view.addEventListener('page-title-updated', (e: Electron.PageTitleUpdatedEvent) => {
-    e.preventDefault(); // prevent Electron from updating the BrowserWindow title
-    if(!props.tab) return;
+    if(isAuthUrl(view.getURL())) return;
+    e.preventDefault();
     tabStore.setTabTitle(tabId, view.getTitle());
   });
 
-  view.addEventListener('did-start-navigation', (e) => {
-    if(!props.tab) return;
-    if (e.isMainFrame) {
-      console.log('Navigation started for tab:', tabId, 'to URL:', e.url);
-      webviewStore.setWebviewLoading(tabId, true);
+  view.addEventListener('did-navigate', (event) => {
+    console.log("We are navigating to:", event.url);
+    webviewStore.setWebviewLoading(tabId, true);
+    tabStore.setTabFavicon(tabId, "");
+    historyStore.addHistoryEntry(tabId, event.url);
+    tabStore.setTabUrl(tabId, event.url);
+  });
+
+  view.addEventListener('did-navigate-in-page', (event) => {
+    console.log("We are navigating to:", event.url);
+    historyStore.addHistoryEntry(tabId, event.url);
+    tabStore.setTabUrl(tabId, event.url);
+  });
+
+  view.addEventListener('ipc-message', (event) => {
+    if (event.channel === 'pip-closed') {
+      console.log('Picture-in-Picture closed for tab:', event.args[0]);
     }
   });
 
-  view.addEventListener('did-start-loading', () => {
-    console.log('Loading started for tab:', tabId);
-      webviewStore.setWebviewLoading(tabId, true);
-  });
-
-  view.addEventListener('did-stop-loading', () => {
-    console.log('Loading stopped for tab:', tabId);
-      webviewStore.setWebviewLoading(tabId, false);
-  });
-
-  // Fallback: In case title updates on navigation
-  view.addEventListener('did-navigate', () => {
-    setTimeout(() => {
-      if(!props.tab) return;
-      console.log('Navigated to:', view.getURL());
-      tabStore.setTabTitle(tabId, view.getTitle());
-      tabStore.addHistoryEntryToTab(tabId, view.getURL());
-    }, 300); // slight delay to ensure title is available
-  });
-
   view.addEventListener('did-finish-load', () => {
+    const url = new URL(view.getURL());
+    if (isAuthUrl(url.href)) return;
     // Wait a bit just in case the favicon is still loading
     setTimeout(() => {
-      tabStore.addHistoryEntryToTab(tabId, view.getURL());
+      // Use the host url to try and get the favicon by appending it to the base URL
+      const host = url.host;
+      let faviconUrl = `https://${host}/favicon.ico`;
 
-      // This script grabs any icon from the page
-      view.executeJavaScript(`
-        (() => {
-          const links = document.querySelectorAll('link[rel~="icon"]');
-          const href = Array.from(links).map(link => link.href).find(Boolean);
-          return href || '';
-        })()
-      `).then((faviconUrl: string) => {
-        if (faviconUrl) {
-          if(!props.tab) return;
-          tabStore.setTabFavicon(tabId, faviconUrl);
-        }
-      });
+      // Check if the favicon exists
+      fetch(`https://www.google.com/s2/favicons?domain=${host}`, { method: 'HEAD' })
+        .then(response => {
+          if (response.ok) {
+            tabStore.setTabFavicon(tabId, `https://www.google.com/s2/favicons?domain=${host}`);
+          } else {
+            // If the favicon doesn't exist, try the original URL
+            return fetch(faviconUrl, { method: 'HEAD' });
+          }
+        })
+        .catch(() => {
+          view.executeJavaScript(`
+            (() => {
+              const links = document.querySelectorAll('link[rel~="icon"]');
+              const href = Array.from(links).map(link => link.href).find(Boolean);
+              return href || '';
+            })()
+          `).then((faviconUrl: string) => {
+            console.log(faviconUrl);
+            if (faviconUrl) {
+              if(!props.tab) return;
+              tabStore.setTabFavicon(tabId, faviconUrl);
+            }
+          });
+        });
+
 
       // Also grab title here if needed
       const title = view.getTitle();
@@ -158,6 +171,7 @@ onMounted(() => {
       }
 
       webviewStore.setWebviewLoading(tabId, false);
+      tabStore.setHasBeenLoaded(tabId, true);
     }, 200);
   });
 

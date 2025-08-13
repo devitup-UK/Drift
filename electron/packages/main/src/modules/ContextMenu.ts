@@ -10,6 +10,9 @@ class ContextMenu implements AppModule {
       showCopyLink: true,
       showCopyImageAddress: true,
     });
+
+
+
   }
 }
 

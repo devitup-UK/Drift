@@ -2,7 +2,7 @@
   <div class="web-content">
     <ToolbarComponent v-if="toolbarVisible" />
     <WebViewComponent
-      v-for="tab in allStandardAndPinnedLoadedTabs"
+      v-for="tab in allTabsShouldRestoreWebview"
       :key="tab.id"
       :tab="tab"></WebViewComponent>
   </div>
@@ -23,7 +23,7 @@ import { storeToRefs } from 'pinia';
 import WebViewComponent from '../components/WebViewComponent.vue';
 import ToolbarComponent from '../components/ToolbarComponent.vue';
 
-const { allStandardAndPinnedLoadedTabs, activeTabId } = storeToRefs(useTabStore());
+const { allTabsShouldRestoreWebview, activeTabId } = storeToRefs(useTabStore());
 const {toolbarVisible} = storeToRefs(useGlobalStore());
 
 </script>

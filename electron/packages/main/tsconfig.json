@@ -12,9 +12,14 @@
     "baseUrl": ".",
     "paths": {
       "@app/preload": ["../preload"],
-      "@app/renderer": ["../renderer"]
+      "@app/renderer": ["../renderer"],
+      "@app/shared": ["../shared"]
     }
   },
-  "include": ["src/**/*.ts", "../../types/**/*.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "../../types/**/*.d.ts",
+    "../shared/**/*.ts",
+  ],
   "exclude": ["**/*.spec.ts", "**/*.test.ts"]
 }

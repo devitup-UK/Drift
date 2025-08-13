@@ -1,11 +1,12 @@
 <template>
-  <li>
+  <li :title="tab.title">
     <template v-if="!webviewState?.loading">
-      <img v-if="tab.getActiveHistoryEntry()?.favicon.length" :src="tab.getActiveHistoryEntry()?.favicon" alt="Favicon" class="tab-favicon" />
-      <FontAwesomeIcon icon="globe" class="tab-favicon" v-if="!tab.getActiveHistoryEntry()?.favicon.length" />
+      <img v-if="tab.favicon.length" :src="tab.favicon" alt="Favicon" class="tab-favicon" />
+      <FontAwesomeIcon icon="globe" class="tab-favicon" v-if="!tab.favicon.length" />
     </template>
-    <FontAwesomeIcon icon="circle-notch" class="tab-favicon" spin v-if="webviewState?.loading" />
-    <span class="tab-title" @dblclick.stop="editingTitle = true" v-if="!editingTitle">{{ tab.hasCustomTitle() ? tab.customTitle : tab.getActiveHistoryEntry().title }}</span>
+    <FontAwesomeIcon icon="circle-notch" class="tab-favicon" spin v-if="(webviewState?.loading && tab.hasBeenLoaded) || !tab.hasBeenLoaded" />
+    <FontAwesomeIcon icon="volume-high" class="tab-favicon" v-if="tab.isMediaPlaying" />
+    <span class="tab-title" @dblclick.stop="editingTitle = true" v-if="!editingTitle">{{ tab.hasCustomTitle() ? tab.customTitle : tab.title }}</span>
     <input ref="titleInput" class="tab-title-input" v-model="customTitle" @blur="editingTitle = false" @keydown.enter="setCustomTitle(customTitle)" @keydown.escape="editingTitle = false" v-else />
     <div class="tab-controls">
       <div class="tab-controls__item" @click.stop="archiveTab(tab.id)">
@@ -61,7 +62,7 @@
 <script setup lang="ts">
 import { defineProps, ref, watch, nextTick, computed } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import Tab from '../../models/Tab';
+import Tab from '../../../../shared/models/Tab';
 import { useWebviewStore } from '../../stores/webviewStore';
 import { useTabStore } from '../../stores/tabStore';
 
@@ -72,7 +73,7 @@ const props = defineProps<{
 const webviewStore = useWebviewStore();
 
 const editingTitle = ref(false);
-const customTitle = ref(props.tab.getActiveHistoryEntry().title ?? '');
+const customTitle = ref(props.tab.title ?? '');
 const titleInput = ref<HTMLInputElement | null>(null);
 const webviewState = computed(() => webviewStore.getWebviewState(props.tab.id));
 
@@ -87,7 +88,7 @@ watch(editingTitle, (newValue) => {
 
 function setCustomTitle(newTitle: string) {
   if(newTitle.trim() === '') {
-    customTitle.value = props.tab.getActiveHistoryEntry().title ?? ''; // Reset to original title if empty
+    customTitle.value = props.tab.title ?? ''; // Reset to original title if empty
   }
   props.tab.setCustomTitle(newTitle);
   editingTitle.value = false;

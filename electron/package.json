@@ -1,5 +1,6 @@
 {
-  "name": "root",
+  "name": "Drift",
+  "productName": "Drift",
   "description": "Secure boilerplate for Electron app based on Vite",
   "version": "3.1.0",
   "private": true,
@@ -44,11 +45,16 @@
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/vue-fontawesome": "^3.0.8",
+    "chokidar": "^4.0.3",
     "css-what": "^7.0.0",
+    "electron-chrome-context-menu": "^1.1.0",
     "electron-chrome-extensions": "^4.9.0",
     "electron-chrome-web-store": "^0.13.0",
     "electron-context-menu": "^4.1.0",
     "happy-dom": "^18.0.1",
-    "pinia-plugin-persistedstate": "^4.4.1"
+    "lowdb": "^7.0.1",
+    "pinia-plugin-persistedstate": "^4.4.1",
+    "vue-debounce": "^5.0.1",
+    "vuedraggable": "^4.1.0"
   }
 }

@@ -4,10 +4,10 @@
       <FontAwesomeIcon icon="rectangle-list" />
     </div>
     <template v-if="showWebViewControls">
-      <div class="webview-controls__button" :class="{ 'webview-controls__button--disabled': !activeTab?.canGoBack() }" @click="activeTab?.goBack()">
+      <div class="webview-controls__button" :class="{ 'webview-controls__button--disabled': !canGoBack }" @click="activeWebviewState?.webview?.goBack()">
         <FontAwesomeIcon icon="arrow-left" />
       </div>
-      <div class="webview-controls__button" :class="{ 'webview-controls__button--disabled': !activeTab?.canGoForward() }" @click="activeTab?.goForward()">
+      <div class="webview-controls__button" :class="{ 'webview-controls__button--disabled': !canGoForward }" @click="activeWebviewState?.webview?.goForward()">
         <FontAwesomeIcon icon="arrow-right" />
       </div>
       <div class="webview-controls__button webview-controls__button--reload" :class="{ 'webview-controls__button--disabled': activeTab == null }" @click="reloadOrStopActiveTab()">
@@ -63,7 +63,7 @@
 </style>
 
 <script setup lang="ts">
-import { ref, computed, defineProps } from 'vue';
+import { ref, computed, defineProps, watch } from 'vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { storeToRefs } from 'pinia';
 
@@ -88,6 +88,35 @@ const activeWebviewState = computed(() => {
   if(!activeTabId.value) return null;
   return webviewStore.getWebviewState(activeTabId.value)
 });
+const canGoBack = ref(false);
+const canGoForward = ref(false);
+
+function updateNavState() {
+  try {
+    const webview = activeWebviewState.value?.webview;
+    if (!webview) return;
+
+    canGoBack.value = webview.canGoBack();
+    canGoForward.value = webview.canGoForward();
+  } catch (e) {
+    canGoBack.value = false;
+    canGoForward.value = false;
+  }
+}
+
+// Watch for tab change or webview change
+watch(activeWebviewState, (newVal, oldVal) => {
+  const webview = newVal?.webview;
+  if (!webview) return;
+
+  // Wait a tick in case webview isn't attached yet
+  setTimeout(() => updateNavState(), 200);
+
+  // Attach listeners for when nav state might change
+  webview.addEventListener('did-navigate', updateNavState);
+  webview.addEventListener('did-navigate-in-page', updateNavState);
+  webview.addEventListener('did-finish-load', updateNavState);
+}, { immediate: true });
 
 function toggleSidebar() {
   globalStore.toggleSidebar();

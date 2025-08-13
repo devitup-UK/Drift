@@ -9,20 +9,21 @@ import {allowInternalOrigins} from './modules/BlockNotAllowdOrigins.js';
 import {allowExternalUrls} from './modules/ExternalUrls.js';
 import { setupContextMenu } from './modules/ContextMenu.js';
 import {createTabManagerModule} from './modules/TabManagerModule.js';
-import { chromeDevToolsExtension } from './modules/ChromeDevToolsExtension.js';
+import { initialiseExtensionsManager } from './modules/ExtensionManager.js';
 import { setupAdblocking } from './modules/AdblockModule.js';
 import path from 'path';
+import { setupDatabase } from './modules/Database.js';
 
 
 export async function initApp(initConfig: AppInitConfig) {
   const moduleRunner = createModuleRunner()
     .init(setupContextMenu())
     .init(createWindowManagerModule({initConfig, openDevTools: false}))
+    .init(setupDatabase())
     // .init(disallowMultipleAppInstance())
-    .init(setupAdblocking())
     .init(terminateAppOnLastWindowClose())
     .init(hardwareAccelerationMode({enable: true}))
-    .init(chromeDevToolsExtension({extension: 'VUEJS_DEVTOOLS'}))
+    .init(initialiseExtensionsManager())
     .init(autoUpdater());
 
     // Security

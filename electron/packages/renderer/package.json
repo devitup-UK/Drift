@@ -23,5 +23,14 @@
     ".": {
       "default": "./dist/index.html"
     }
+  },
+  "build": {
+    "directories": {
+      "buildResources": "buildResources"
+    },
+    "mac": {
+      "title": "Drift",
+      "icon": "buildResources/icon.icns"
+    }
   }
 }
